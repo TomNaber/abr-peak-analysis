@@ -1,4 +1,14 @@
 ## Changelog
+### V2.2.0 (2026-07-26)
+#### Fixed
+- saved messages not showing
+- nested folders not showing contents on Mac OS
+- hiding a peak removing previously marked peak data; peak data is now always retained and peak visibility dictates which get exported
+- altered settings not applying to currently open measurements
+
+#### Added
+- icon for saved files
+- new tab system in which measurements populate the current tab and extra tabs can be manually created for comparison or switching
 
 ### V2.1.1 (2026-07-09)
 #### Fixed
@@ -9,7 +19,7 @@
 - scaling range limit (was 2-14, now is 0.25-20)
 
 #### Added
-- Legend for IO plot
+- legend for IO plot
 
 #### Removed
 - analyze noise floor option, as the difference waveform between condensation and rarefaction does not reliably isolate only noise peaks (cochlear microphonics can be picked up as a 'spurious' peak and the timing of the waves can differ between condensation and rarefaction, so that a slightly earlier condensation peak would cause a difference between the condensation and rarefaction waveforms that represents an amplitude difference at a given latency due to a real neural signal, not noise as the algorithm expects); some ABR acquisition softwares allow recording prior to stimulus generation, so that we could apply the peak finder algorithm to estimate the noise floor on, for example, 2 ms of recordings before stimulus onset, which we could implement if there is demand
