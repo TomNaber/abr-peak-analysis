@@ -166,8 +166,10 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
             self._add_tab_control.AddPage(self._add_tab_window, add_page)
             self._add_tab_control.Bind(
                 wx.aui.EVT_AUINOTEBOOK_PAGE_CHANGING, self.OnAddTab)
+        self._add_tab_width = self.FromDIP(
+            38 if wx.Platform == '__WXMAC__' else 36)
         self._add_tab_control.SetSize(
-            1, 1, self.FromDIP(36), self.FromDIP(28))
+            1, 1, self._add_tab_width, self.FromDIP(28))
         self._add_tab_control.Raise()
         wx.CallAfter(self._position_add_tab)
 
@@ -415,7 +417,7 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
             position = wx.Point(1, 1)
             height = getattr(self, '_add_tab_height', self.FromDIP(28))
 
-        width = self.FromDIP(36)
+        width = self._add_tab_width
         position.x = min(
             position.x, max(1, self.GetClientSize().width - width - 1))
         rect = wx.Rect(position.x, position.y, width, height)
