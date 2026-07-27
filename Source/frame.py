@@ -134,27 +134,38 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
                 **kwargs)
 
         self._resized = False
+        self._watched_tab_control = None
 
         dt = PhysiologyNbFileDropTarget(self)
         self.SetDropTarget(dt)
         self.Bind(wx.EVT_SIZE, self.OnSize)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
         self.Bind(wx.aui.EVT_AUINOTEBOOK_PAGE_CLOSED, self.OnPageClosed)
-        self._add_tab_control = wx.aui.AuiTabCtrl(self)
-        self._add_tab_control.SetArtProvider(self.GetArtProvider().Clone())
-        self._add_tab_control.SetFlags(0)
-        self._add_tab_window = wx.Panel(self)
-        self._add_tab_window.Hide()
-        add_bitmap = wx.ArtProvider.GetBitmap(
-            wx.ART_PLUS, wx.ART_OTHER, (12, 12))
-        add_page = wx.aui.AuiNotebookPage()
-        add_page.caption = ''
-        add_page.tooltip = 'New tab'
-        add_page.bitmap = wx.BitmapBundle(add_bitmap)
-        add_page.active = False
-        self._add_tab_control.AddPage(self._add_tab_window, add_page)
-        self._add_tab_control.Bind(
-            wx.aui.EVT_AUINOTEBOOK_PAGE_CHANGING, self.OnAddTab)
+        if wx.Platform == '__WXMSW__':
+            # An inactive auxiliary AuiTabCtrl is only painted reliably after
+            # mouse movement on Windows. A native button keeps the new-tab
+            # action visible even before the tab bar has been hovered.
+            self._add_tab_control = wx.Button(
+                self, label='+', style=wx.BU_EXACTFIT)
+            self._add_tab_control.SetToolTip('New tab')
+            self._add_tab_control.Bind(wx.EVT_BUTTON, self.OnAddTab)
+        else:
+            self._add_tab_control = wx.aui.AuiTabCtrl(self)
+            self._add_tab_control.SetArtProvider(
+                self.GetArtProvider().Clone())
+            self._add_tab_control.SetFlags(0)
+            self._add_tab_window = wx.Panel(self)
+            self._add_tab_window.Hide()
+            add_bitmap = wx.ArtProvider.GetBitmap(
+                wx.ART_PLUS, wx.ART_OTHER, (12, 12))
+            add_page = wx.aui.AuiNotebookPage()
+            add_page.caption = ''
+            add_page.tooltip = 'New tab'
+            add_page.bitmap = wx.BitmapBundle(add_bitmap)
+            add_page.active = False
+            self._add_tab_control.AddPage(self._add_tab_window, add_page)
+            self._add_tab_control.Bind(
+                wx.aui.EVT_AUINOTEBOOK_PAGE_CHANGING, self.OnAddTab)
         self._add_tab_control.SetSize(
             1, 1, self.FromDIP(36), self.FromDIP(28))
         self._add_tab_control.Raise()
@@ -351,12 +362,38 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
         self._position_add_tab()
 
     def OnAddTab(self, evt):
-        evt.Veto()
+        if hasattr(evt, 'Veto'):
+            evt.Veto()
         wx.CallAfter(self.add_blank_tab)
 
     def OnPageClosed(self, evt):
         wx.CallAfter(self._position_add_tab)
         evt.Skip()
+
+    def OnTabBarPaint(self, evt):
+        evt.Skip()
+        wx.CallAfter(self._repaint_add_tab)
+
+    def _watch_tab_control(self, tabs):
+        if tabs is self._watched_tab_control:
+            return
+        if self._watched_tab_control is not None:
+            try:
+                self._watched_tab_control.Unbind(
+                    wx.EVT_PAINT, handler=self.OnTabBarPaint)
+            except RuntimeError:
+                pass
+        tabs.Bind(wx.EVT_PAINT, self.OnTabBarPaint)
+        self._watched_tab_control = tabs
+
+    def _repaint_add_tab(self):
+        try:
+            self._add_tab_control.Raise()
+            self._add_tab_control.Show()
+            self._add_tab_control.Refresh()
+            self._add_tab_control.Update()
+        except RuntimeError:
+            pass
 
     def _position_add_tab(self):
         try:
@@ -365,6 +402,9 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
             pages = tabs.GetPages()
         except RuntimeError:
             return
+
+        if wx.Platform == '__WXMSW__':
+            self._watch_tab_control(tabs)
 
         if pages and height > 2:
             right = max((page.rect.GetRight() for page in pages), default=0)
@@ -379,10 +419,13 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
         position.x = min(
             position.x, max(1, self.GetClientSize().width - width - 1))
         rect = wx.Rect(position.x, position.y, width, height)
-        if self._add_tab_control.GetRect() != rect:
+        moved = self._add_tab_control.GetRect() != rect
+        if moved:
             self._add_tab_control.SetSize(rect)
         self._add_tab_control.Raise()
         self._add_tab_control.Show()
+        if wx.Platform == '__WXMSW__' and moved:
+            self._repaint_add_tab()
 
     def delete_document_page(self, index):
         return self.DeletePage(index)
