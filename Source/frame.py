@@ -199,16 +199,6 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
     def document_indexes(self):
         return list(range(self.GetPageCount()))
 
-    def selected_file_is_open(self, fname):
-        index = self.GetSelection()
-        if index == wx.NOT_FOUND:
-            return False
-        target = os.path.normcase(os.path.realpath(fname))
-        presenter = getattr(self.GetPage(index), 'presenter', None)
-        current = getattr(getattr(presenter, 'model', None), 'filename', None)
-        return bool(current and
-                    os.path.normcase(os.path.realpath(current)) == target)
-
     def add_blank_tab(self):
         page = wx.Panel(self)
         page.is_blank_tab = True
@@ -272,8 +262,6 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
     def load(self, data, invert=False):
         if not data:
             return False
-        if self.selected_file_is_open(data[0]):
-            return True
         if self.is_audiogram_series(data):
             return self.load_freq_series(data)
         if len(data) != 1:
