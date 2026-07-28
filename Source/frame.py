@@ -224,8 +224,7 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
 
         self.InsertPage(index, page, name)
         self.ChangeSelection(index)
-        self.DeletePage(index + 1)
-        wx.CallAfter(self._position_add_tab)
+        self.delete_document_page(index + 1)
 
     def add_page_after_selected(self, page, name):
         selected = self.GetSelection()
@@ -357,8 +356,32 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
         wx.CallAfter(self.add_blank_tab)
 
     def OnPageClosed(self, evt):
-        wx.CallAfter(self._position_add_tab)
+        self._queue_tab_bar_after_page_close()
         evt.Skip()
+
+    def _queue_tab_bar_after_page_close(self):
+        if wx.Platform == '__WXMSW__':
+            wx.CallAfter(self._refresh_tab_bar_after_page_close)
+        else:
+            wx.CallAfter(self._position_add_tab)
+
+    def _refresh_tab_bar_after_page_close(self):
+        try:
+            self._add_tab_control.Hide()
+            tabs = self.GetActiveTabCtrl()
+            dc = wx.ClientDC(tabs)
+            dc.SetBackground(wx.Brush(tabs.GetBackgroundColour()))
+            dc.Clear()
+            del dc
+            tabs.Refresh()
+            tabs.Update()
+        except RuntimeError:
+            try:
+                self._add_tab_control.Show()
+            except RuntimeError:
+                pass
+            return
+        self._position_add_tab()
 
     def OnTabBarPaint(self, evt):
         evt.Skip()
@@ -418,7 +441,10 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
             self._repaint_add_tab()
 
     def delete_document_page(self, index):
-        return self.DeletePage(index)
+        deleted = self.DeletePage(index)
+        if deleted:
+            self._queue_tab_bar_after_page_close()
+        return deleted
         
             
 #----------------------------------------------------------------------------
